@@ -1,6 +1,6 @@
 namespace NSE.Identidade.API.Extensions
 {
-    public class AppSettings
+    public class AppSettingsExtension
     {
         public string Secret { get; set; }
         public int ExpiracaoHoras { get; set; }

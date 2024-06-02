@@ -5,7 +5,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace NSE.Identidade.API.Configuration
 {
-    public static class ApiConfig
+    public static class ApiConfiguration
     {
         public static IServiceCollection AddApiConfiguration(this IServiceCollection services)
         {

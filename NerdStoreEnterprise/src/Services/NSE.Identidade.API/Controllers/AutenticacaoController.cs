@@ -15,15 +15,16 @@ using NSE.Identidade.API.Models;
 namespace NSE.Identidade.API.Controllers
 {
     [Route("api/identidade")]
-    public class AuthController : MainController
+    public class AutenticacaoController : ControllerBase
     {
         private readonly SignInManager<IdentityUser> _signInManager;
         private readonly UserManager<IdentityUser> _userManager;
-        private readonly AppSettings _appSettings;
+        private readonly AppSettingsExtension _appSettings;
 
-        public AuthController(SignInManager<IdentityUser> signInManager,
-                              UserManager<IdentityUser> userManager,
-                              IOptions<AppSettings> appSettings)
+        public AutenticacaoController(
+            SignInManager<IdentityUser> signInManager,
+            UserManager<IdentityUser> userManager,
+            IOptions<AppSettingsExtension> appSettings)
         {
             _signInManager = signInManager;
             _userManager = userManager;
@@ -31,46 +32,45 @@ namespace NSE.Identidade.API.Controllers
         }
 
         [HttpPost("nova-conta")]
-        public async Task<ActionResult> Registrar(UsuarioRegistro usuarioRegistro)
+        public async Task<ActionResult> Registrar(UsuarioRegistroViewModel usuarioRegistro)
         {
             if (!ModelState.IsValid) return CustomResponse(ModelState);
 
-            var user = new IdentityUser
+            var identityUser = new IdentityUser
             {
                 UserName = usuarioRegistro.Email,
                 Email = usuarioRegistro.Email,
                 EmailConfirmed = true
             };
 
-            var result = await _userManager.CreateAsync(user, usuarioRegistro.Senha);
+            var resultado = await _userManager.CreateAsync(identityUser, usuarioRegistro.Senha);
 
-            if (result.Succeeded)
+            if (resultado.Succeeded)
             {
-                return CustomResponse(await GerarJwt(usuarioRegistro.Email));
+                return CustomResponse(await GerarTokenJwt(usuarioRegistro.Email));
             }
 
-            foreach (var error in result.Errors)
+            foreach (var erro in resultado.Errors)
             {
-                AdicionarErroProcessamento(error.Description);
+                AdicionarErroProcessamento(erro.Description);
             }
 
             return CustomResponse();
         }
 
         [HttpPost("autenticar")]
-        public async Task<ActionResult> Login(UsuarioLogin usuarioLogin)
+        public async Task<ActionResult> Login(UsuarioLoginViewModel usuarioLogin)
         {
             if (!ModelState.IsValid) return CustomResponse(ModelState);
 
-            var result = await _signInManager.PasswordSignInAsync(usuarioLogin.Email, usuarioLogin.Senha,
-                false, true);
+            var resultado = await _signInManager.PasswordSignInAsync(usuarioLogin.Email, usuarioLogin.Senha, false, true);
 
-            if (result.Succeeded)
+            if (resultado.Succeeded)
             {
-                return CustomResponse(await GerarJwt(usuarioLogin.Email));
+                return CustomResponse(await GerarTokenJwt(usuarioLogin.Email));
             }
 
-            if (result.IsLockedOut)
+            if (resultado.IsLockedOut)
             {
                 AdicionarErroProcessamento("Usuário temporariamente bloqueado por tentativas inválidas");
                 return CustomResponse();
@@ -80,29 +80,30 @@ namespace NSE.Identidade.API.Controllers
             return CustomResponse();
         }
 
-        private async Task<UsuarioRespostaLogin> GerarJwt(string email)
+        private async Task<UsuarioRespostaLoginViewModel> GerarTokenJwt(string email)
         {
-            var user = await _userManager.FindByEmailAsync(email);
-            var claims = await _userManager.GetClaimsAsync(user);
+            var identityUser = await _userManager.FindByEmailAsync(email);
+            var claims = await _userManager.GetClaimsAsync(identityUser);
 
-            var identityClaims = await ObterClaimsUsuario(claims, user);
-            var encodedToken = CodificarToken(identityClaims);
+            var identityClaims = await ObterClaimsUsuario(claims, identityUser);
+            var tokenEncriptografado = CodificarToken(identityClaims);
 
-            return ObterRespostaToken(encodedToken, user, claims);
+            return ObterRespostaDoToken(tokenEncriptografado, identityUser, claims);
         }
 
-        private async Task<ClaimsIdentity> ObterClaimsUsuario(ICollection<Claim> claims, IdentityUser user)
+        private async Task<ClaimsIdentity> ObterClaimsUsuario(ICollection<Claim> claims, IdentityUser usuario)
         {
-            var userRoles = await _userManager.GetRolesAsync(user);
+            var userRoles = await _userManager.GetRolesAsync(usuario);
 
-            claims.Add(new Claim(JwtRegisteredClaimNames.Sub, user.Id));
-            claims.Add(new Claim(JwtRegisteredClaimNames.Email, user.Email));
+            claims.Add(new Claim(JwtRegisteredClaimNames.Sub, usuario.Id));
+            claims.Add(new Claim(JwtRegisteredClaimNames.Email, usuario.Email));
             claims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
             claims.Add(new Claim(JwtRegisteredClaimNames.Nbf, ToUnixEpochDate(DateTime.UtcNow).ToString()));
             claims.Add(new Claim(JwtRegisteredClaimNames.Iat, ToUnixEpochDate(DateTime.UtcNow).ToString(), ClaimValueTypes.Integer64));
-            foreach (var userRole in userRoles)
+
+            foreach (var role in userRoles)
             {
-                claims.Add(new Claim("role", userRole));
+                claims.Add(new Claim("role", role));
             }
 
             var identityClaims = new ClaimsIdentity();
@@ -127,17 +128,17 @@ namespace NSE.Identidade.API.Controllers
             return tokenHandler.WriteToken(token);
         }
 
-        private UsuarioRespostaLogin ObterRespostaToken(string encodedToken, IdentityUser user, IEnumerable<Claim> claims)
+        private UsuarioRespostaLoginViewModel ObterRespostaDoToken(string encodedToken, IdentityUser user, IEnumerable<Claim> claims)
         {
-            return new UsuarioRespostaLogin
+            return new UsuarioRespostaLoginViewModel
             {
                 AccessToken = encodedToken,
                 ExpiresIn = TimeSpan.FromHours(_appSettings.ExpiracaoHoras).TotalSeconds,
-                UsuarioToken = new UsuarioToken
+                UsuarioToken = new UsuarioTokenViewModel
                 {
                     Id = user.Id,
                     Email = user.Email,
-                    Claims = claims.Select(c => new UsuarioClaim { Type = c.Type, Value = c.Value })
+                    Claims = claims.Select(c => new UsuarioClaimViewModel { Type = c.Type, Value = c.Value })
                 }
             };
         }

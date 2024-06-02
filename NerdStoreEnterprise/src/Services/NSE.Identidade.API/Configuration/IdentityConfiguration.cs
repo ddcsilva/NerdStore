@@ -11,7 +11,7 @@ using NSE.Identidade.API.Extensions;
 
 namespace NSE.Identidade.API.Configuration
 {
-    public static class IdentityConfig
+    public static class IdentityConfiguration
     {
         public static IServiceCollection AddIdentityConfiguration(this IServiceCollection services,
             IConfiguration configuration)
@@ -24,16 +24,16 @@ namespace NSE.Identidade.API.Configuration
             #region Configuração do Identity
             services.AddDefaultIdentity<IdentityUser>()
                 .AddRoles<IdentityRole>()
-                .AddErrorDescriber<IdentityMensagensPortugues>()
+                .AddErrorDescriber<IdentityPtBrExtension>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
             #endregion
 
             #region Configuração do JWT
             var appSettingsSection = configuration.GetSection("AppSettings");
-            services.Configure<AppSettings>(appSettingsSection);
+            services.Configure<AppSettingsExtension>(appSettingsSection);
 
-            var appSettings = appSettingsSection.Get<AppSettings>();
+            var appSettings = appSettingsSection.Get<AppSettingsExtension>();
             var key = Encoding.ASCII.GetBytes(appSettings.Secret);
 
             services.AddAuthentication(options =>

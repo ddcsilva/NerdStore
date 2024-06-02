@@ -5,7 +5,7 @@ using Microsoft.OpenApi.Models;
 
 namespace NSE.Identidade.API.Configuration
 {
-    public static class SwaggerConfig
+    public static class SwaggerConfiguration
     {
         public static IServiceCollection AddSwaggerConfiguration(this IServiceCollection services)
         {

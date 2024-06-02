@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 namespace NSE.Identidade.API.Controllers
 {
     [ApiController]
-    public abstract class MainController : Controller
+    public abstract class ControllerBase : Controller
     {
         protected ICollection<string> Erros = new List<string>();
 
